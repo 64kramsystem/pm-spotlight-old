@@ -1,4 +1,4 @@
-module SpotlightOperationConstants
+module FifoMetadata
   COMMAND_SHOW = 'show'
   COMMAND_QUIT = 'quit'
 

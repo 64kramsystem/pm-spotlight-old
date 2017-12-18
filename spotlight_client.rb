@@ -2,10 +2,10 @@
 
 require 'simple_scripting/argv'
 
-require_relative 'spotlight_operation_constants'
+require_relative 'fifo_metadata'
 
 class SpotlightClientCommandlineDecoder
-  include SpotlightOperationConstants
+  include FifoMetadata
 
   LONG_HELP = <<~STR
     Usage: spotlight_client.rb <operation>
@@ -20,7 +20,7 @@ class SpotlightClientCommandlineDecoder
 end
 
 class SpotlightClient
-  include SpotlightOperationConstants
+  include FifoMetadata
 
   def execute(command)
     check_file

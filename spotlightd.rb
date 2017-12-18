@@ -1,124 +1,19 @@
 #!/usr/bin/env ruby
 
 require 'tk'
-require 'simple_scripting/argv'
-require 'simple_scripting/configuration'
 require 'shellwords'
 require 'open3'
 
-require_relative 'spotlight_operation_constants'
-
-class ConfigurationLoader
-  def load
-    configuration = SimpleScripting::Configuration.load
-
-    cmdline_options = SimpleScripting::Argv.decode(
-      ['-d', '--include-directories', 'Include directories in the search'],
-      long_help: Spotlight::CMDLINE_LONG_HELP
-    ) || exit
-
-    search_paths = configuration.search_paths.full_paths.map(&method(:decode_path))
-
-    skip_paths = configuration.skip_paths.full_paths
-    include_directories = cmdline_options[:include_directories]
-
-    [search_paths, skip_paths, include_directories]
-  end
-
-  private
-
-  def decode_path(path)
-    if path =~ /(.*?)\{(\d+)\}$/
-      {$1 => $2.to_i}
-    else
-      path
-    end
-  end
-end
-
-class Finder
-  # search_paths: an array composed of: String, or `{String => depth}` (for limiting depth)
-  #
-  def initialize(raw_search_paths, include_directories: false, skip_paths: [])
-    @search_paths = aggregate_search_paths_by_depth(raw_search_paths)
-    @include_directories = include_directories
-    @skip_paths = skip_paths
-  end
-
-  def find_files(raw_pattern)
-    entries = @search_paths.flat_map do |depth, search_paths|
-      find_files_with_depth(raw_pattern, depth, search_paths)
-    end
-
-    entries.uniq!
-
-    sort_entries(entries, raw_pattern)
-  end
-
-  private
-
-  def aggregate_search_paths_by_depth(raw_search_paths)
-    aggregated_paths = Hash.new { |hash, key| hash[key] = [] }
-
-    raw_search_paths.each do |search_paths_entry|
-      if search_paths_entry.is_a?(Hash)
-        aggregated_paths[search_paths_entry.values.first] << search_paths_entry.keys.first
-      else
-        aggregated_paths[nil] << search_paths_entry
-      end
-    end
-
-    aggregated_paths
-  end
-
-  def find_files_with_depth(raw_pattern, depth, search_paths)
-    search_paths_option = search_paths.map(&:shellescape).join(' ')
-    pattern_option = "-iname " + "*#{raw_pattern}*".shellescape
-    file_type_option = '-type f' unless @include_directories
-
-    skip_paths_option = @skip_paths.to_a.map do |path|
-      path_with_pattern = File.join(path, '*')
-      ' -not -path ' + path_with_pattern.shellescape
-    end.join(' ')
-
-    depth_option = "-maxdepth #{depth}" if depth
-
-    command = "find #{search_paths_option} #{depth_option} #{pattern_option} #{file_type_option} #{skip_paths_option}"
-
-    `#{command}`.chomp.split("\n")
-  end
-
-  def sort_entries(entries, raw_pattern)
-    exact_matches = []
-
-    entries.delete_if do |entry|
-      exact_match = File.basename(entry) == raw_pattern
-
-      if exact_match
-        exact_matches << entry
-        true
-      end
-    end
-
-    entries.unshift(*exact_matches)
-  end
-end
+require_relative 'configuration_loader'
+require_relative 'find_finder'
+require_relative 'fifo_metadata'
 
 class Spotlight
-  CMDLINE_LONG_HELP = <<~STR
-    Poor man's spotlight. The executable used for opening the files is the default one as configurad in Ubuntu.
-
-    Search/skip paths are defined in sav_scripts as 'search_paths' and 'skip_paths', with entries separated by ':'.
-    Skip paths are optional.
-
-    Paths including ':' are not supported.
-  STR
-
   KEYCODE_ESC        = 9
   KEYCODE_ENTER      = 36
   KEYCODE_ARROW_DOWN = 116
 
-  include SpotlightOperationConstants
+  include FifoMetadata
 
   def initialize(finder)
     @finder = finder
@@ -308,7 +203,7 @@ if $PROGRAM_NAME == __FILE__
 
   search_paths, skip_paths, include_directories = ConfigurationLoader.new.load
 
-  finder = Finder.new(search_paths, skip_paths: skip_paths, include_directories: include_directories)
+  finder = FindFinder.new(search_paths, skip_paths: skip_paths, include_directories: include_directories)
 
   Spotlight.new(finder).show
 
