@@ -4,6 +4,9 @@ require 'tk'
 require 'simple_scripting/argv'
 require 'simple_scripting/configuration'
 require 'shellwords'
+require 'open3'
+
+require_relative 'spotlight_operation_constants'
 
 class ConfigurationLoader
   def load
@@ -115,6 +118,8 @@ class Spotlight
   KEYCODE_ENTER      = 36
   KEYCODE_ARROW_DOWN = 116
 
+  include SpotlightOperationConstants
+
   def initialize(finder)
     @finder = finder
 
@@ -123,13 +128,14 @@ class Spotlight
     @pattern_input_v     = TkVariable.new
 
     instantiate_widgets
-    bind_events
+    bind_keyboard_events
+
+    create_fifo_file
+    trap_process_signals
   end
 
   def show
-    @pattern_input.focus
-
-    Tk.mainloop
+    listen_process_events(first_start: true)
   end
 
   private
@@ -166,9 +172,12 @@ class Spotlight
     TkGrid.rowconfigure(content_frame, 2, weight: 1)
   end
 
-  def bind_events
+  def bind_keyboard_events
     @root.bind('Key') do |event|
-      close_gui if event.keycode == KEYCODE_ESC
+      if event.keycode == KEYCODE_ESC
+        hide_gui
+        listen_process_events(first_start: false)
+      end
     end
 
     @pattern_input.bind('Key') do |event|
@@ -208,17 +217,67 @@ class Spotlight
     end
   end
 
+  def create_fifo_file
+    if ! File.exists?(FIFO_FILENAME)
+      checked_shell_execution "mkfifo #{FIFO_FILENAME.shellescape}"
+    end
+  end
+
+  def delete_fifo_file
+    File.delete(FIFO_FILENAME)
+  end
+
+  def listen_process_events(first_start:)
+    command = IO.read(FIFO_FILENAME.shellescape).rstrip
+
+    case command
+    when COMMAND_SHOW
+      show_gui(first_start: first_start)
+    when COMMAND_QUIT
+      close_gui
+      delete_fifo_file
+    else
+      raise "Unexpected command: #{command.inspect}"
+    end
+  end
+
+  def trap_process_signals
+    trap('INT') { delete_fifo_file; raise Interrupt }
+    trap('TERM') { delete_fifo_file }
+  end
+
   #####################
   # Other helpers
   #####################
+
+  def hide_gui
+    @root.withdraw
+  end
+
+  def show_gui(first_start:)
+    @pattern_input.focus
+
+    if first_start
+      Tk.mainloop
+    else
+      @pattern_input_v.value = ''
+      @root.deiconify
+    end
+  end
 
   def close_gui
     @root.destroy
   end
 
   def open_file(filename)
-    close_gui
-    fork { `xdg-open #{filename.shellescape}` }
+    hide_gui
+
+    # Can't use Kernel#fork, as it will cause as threading problem with Tk - this
+    # method is invoked from the Tk loop.
+    #
+    `xdg-open #{filename.shellescape} &`
+
+    listen_process_events(first_start: false)
   end
 
   def find_files_for_pattern(pattern)
@@ -235,6 +294,13 @@ class Spotlight
     # It's possible that a file is at the root level, thus the '||'
     #
     text[%r{[^/]*/[^/]*$}] || text
+  end
+
+  def checked_shell_execution(command)
+    Open3.popen3(command) do |_, _, stderr, wait_thread|
+      stderr_content = stderr.read
+      raise stderr_content if ! wait_thread.value.success?
+    end
   end
 end
 
