@@ -36,10 +36,17 @@ class SpotlightClient
   def send_command(command)
     case command
     when COMMAND_SHOW, COMMAND_QUIT
-      IO.write(FIFO_FILENAME, command)
+      write_to_named_pipe(FIFO_FILENAME, command)
     else
       raise "Unexpected command: #{command.inspect}"
     end
+  end
+
+  def write_to_named_pipe(filename, content)
+    # Non-blocking write (`w+`)
+    # In case of any problem with the pipe, there won't be left a hung process in memory.
+    #
+    open(filename, 'w+') { |f| f.puts(content) }
   end
 end
 
