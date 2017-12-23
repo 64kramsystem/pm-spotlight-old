@@ -167,10 +167,7 @@ class Spotlight
   def open_file(filename)
     hide_gui
 
-    # Can't use Kernel#fork, as it will cause as threading problem with Tk - this
-    # method is invoked from the Tk loop.
-    #
-    `xdg-open #{filename.shellescape} &`
+    execute_in_background(filename)
 
     listen_process_events(first_start: false)
   end
@@ -189,6 +186,23 @@ class Spotlight
     # It's possible that a file is at the root level, thus the '||'
     #
     text[%r{[^/]*/[^/]*$}] || text
+  end
+
+  # Choosing the right API is not simple, also because it depends on the spotlightd GUI architecture
+  # (and on `xdg-open`).
+  # With the current (experimental) architecture:
+  #
+  # - `fork()` doesn't work, as it raises an error about X multithreading on the second invocation
+  # - backticks (``` `` ```) will block (eg. when opening a libreoffice document)
+  #
+  # Interestingly, while `system()` is a blocking API like the backticks, it doesn't block; the only
+  # thing that may be related is that `system()` doesn't read the stdout, although it's not clear
+  # who `xdg-open` relates to it, since it has no visible output.
+  #
+  # Note that `system()` won't block because `xdg-open` forks the target application and exits.
+  #
+  def execute_in_background(filename)
+    system "xdg-open #{filename.shellescape}"
   end
 
   def checked_shell_execution(command)
