@@ -132,7 +132,7 @@ class Spotlight
       close_gui
       delete_fifo_file
     else
-      raise "Unexpected command: #{command.inspect}"
+      $stderr.puts "Unexpected command: #{command.inspect}"
     end
   end
 
