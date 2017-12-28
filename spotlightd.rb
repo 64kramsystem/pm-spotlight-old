@@ -9,6 +9,8 @@ require_relative 'find_finder'
 require_relative 'fifo_metadata'
 
 class Spotlight
+  ICON_FILE = File.join(__dir__, 'extra', 'telescope-icon.gif')
+
   KEYCODE_ESC        = 9
   KEYCODE_ENTER      = 36
   KEYCODE_ARROW_DOWN = 116
@@ -44,6 +46,10 @@ class Spotlight
     entries_list_v = @entries_list_v
 
     @root = TkRoot.new { title "Poor man's Spotlight!" }
+
+    icon = TkPhotoImage.new('file' => ICON_FILE)
+    @root.iconphoto(icon)
+
     TkGrid.columnconfigure(@root, 0, minsize: 400)
 
     content_frame = Tk::Tile::Frame.new(@root) { padding '10 10 10 10' }.grid(sticky: 'nsew')
