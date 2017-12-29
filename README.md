@@ -1,39 +1,56 @@
 # Poor Man's Spotglight
 
-PMsS is a minimal desktop search service for Linux machines.
+PMsS is a minimal desktop search service for Debian/Ubuntu machines, designed to simply open files/directories, without any indexing.
+
+![Example](/extra/example.png?raw=true)
 
 ## Usage
 
-PMSsS's purpose it have a fast way of searching files/directories in the configured locations, through substring matching.
+The user types the global hotkey (typically, `Super+space`), which will open a widget; by typing a string (e.g. `game`), a list of matching files/directories will be dynamically presented (e.g. the file `game_of_life.md` and the directory `my_games`); they can be opened by scrolling with the arrows and clicking enter.
 
-The application is divided into a daemon and a client. The user typically binds the client to a global key (e.g. `Super+Space`), then types a substring (eg. `game` will match the file `game_of_life.md` and the directory `my_games`), and selects from a dynamically updated list.
+The search locations are configurated by the user in the configuration file.
+
+## Installation
+
+PMsS requires a Ruby with Tcl/TK support; on Ubuntu, the easiest way is to use the BrightBox precompiled ruby interpreter:
+
+```sh
+$ sudo add-apt-repository -y ppa:brightbox/ruby-ng
+$ sudo apt install ruby2.3-tcltk
+```
+
+Currently, versions 2.0 to 2.3 are available.
+
+After this, execute the following from the PMsS directory:
+
+```sh
+bundle install
+./configure.sh
+```
+
+By default, PMsS will search in the `Desktop` directory, and the top-level directories of `$HOME`.
 
 ## Configuration
 
-Sample configuration (generation):
+After executing the configuration script, one should configure the search paths, which are configured in "$HOME/.spotlightd"; this is an example:
 
-```sh
-echo '
+```
 search_paths=Desktop:studies:/home/myuser{1}:/usr/local/src
 skip_paths=Desktop/temp_dir
-' > ~/.spotlightd
-
-echo '[Desktop Entry]
-Type=Application
-Name=Spotlightd
-Comment=Spotlight daemon
-X-GNOME-Autostart-enabled=true
-Exec=/home/saverio/code/pm-spotlight/spotlightd.rb -d
-
-' > ~/.config/autostart/Spotlightd.desktop
 ```
 
-Finally, the command `spotlight_client.rb show` must be associated to a global key (e.g. `Super+Space`).
-
-Format of `~/.spotlightd`:
+The format is:
 
 - when a path doesn't start with `/`, it is relative to the home dir
 - in order ot enforce a certain search depth, place it a the end of a path, between curly braces, e.g. `/home/myuser{1}` will find files and directories under `/home/myuser`, but won't recursively search inside the directories.
+
+The above example will:
+
+- include `$HOME/Desktop` and its subdirectories
+- include `$HOME/studies` and its subdirectories
+- include `$HOME` top-level files, without recursion; for example, `$HOME/games` will be included, but not `$HOME/games/metroid`
+- include `/usr/local/src` and its subdirectories
+- skip `Desktop/temp_dir`
 
 ## Design
 
@@ -48,5 +65,13 @@ This project has no testing, as it was originally written for internal use, alth
 
 Its purpose (as open source project) is to provide an example for writing a simple Ruby GUI application.
 
-I will expand the documentation of it, make a configuration tool, and package it in a gem; if the project will be forked, I will add testing.  
 For my testing practices, see other projects, like [Spreadbase](https://github.com/saveriomiroddi/spreadbase) and [Geet](https://github.com/saveriomiroddi/geet).
+
+## Plan
+
+Plans are provided through GibHub issues. The current priority is to redesign the daemon to use threading/IPC.
+
+Long-term plans are:
+
+- re-evaluation of the GUI toolkit
+- packaging
