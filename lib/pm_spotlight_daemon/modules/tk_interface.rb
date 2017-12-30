@@ -1,7 +1,7 @@
 require 'tk'
 
 require_relative '../../pm_spotlight_shared/shared_configuration'
-require_relative '../serialization/find_result_deserializer'
+require_relative '../serialization/search_result_deserializer'
 require_relative '../utils/files_opener'
 
 module PmSpotlightDaemon
@@ -15,10 +15,10 @@ module PmSpotlightDaemon
 
       include PmSpotlightShared::SharedConfiguration
 
-      def initialize(commands_reader, find_pattern_writer, find_result_reader)
+      def initialize(commands_reader, search_pattern_writer, search_result_reader)
         @commands_reader = commands_reader
-        @find_pattern_writer = find_pattern_writer
-        @find_result_deserializer = PmSpotlightDaemon::Serialization::FindResultDeserializer.new(find_result_reader, LIMIT_FIND_RESULT_MESSAGE_SIZE)
+        @search_pattern_writer = search_pattern_writer
+        @search_result_deserializer = PmSpotlightDaemon::Serialization::SearchResultDeserializer.new(search_result_reader, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
 
         @entries_list_array  = []
         @entries_list_v      = TkVariable.new
@@ -28,7 +28,7 @@ module PmSpotlightDaemon
         bind_keyboard_events
 
         poll_commands_reader
-        poll_find_result_reader
+        poll_search_result_reader
       end
 
       def start
@@ -109,10 +109,10 @@ module PmSpotlightDaemon
           #
           @entries_list_v.value = []
 
-          puts "TkInterface: sending #{@pattern_input_v.value.inspect} to find_pattern_writer"
+          puts "TkInterface: sending #{@pattern_input_v.value.inspect} to search_pattern_writer"
 
-          @find_pattern_writer.write(@pattern_input_v.value)
-          @find_pattern_writer.flush
+          @search_pattern_writer.write(@pattern_input_v.value)
+          @search_pattern_writer.flush
         end
       end
 
@@ -148,16 +148,16 @@ module PmSpotlightDaemon
         end
       end
 
-      def poll_find_result_reader
-        @root.after(FIND_RESULT_POLL_TIME) do
-          @find_result_deserializer.buffered_deserialize do |last_find_result|
-            @entries_list_array = last_find_result
-            @entries_list_v.value = last_find_result.map { |entry| transform_entry_text(entry) }
+      def poll_search_result_reader
+        @root.after(SEARCH_RESULT_POLL_TIME) do
+          @search_result_deserializer.buffered_deserialize do |last_search_result|
+            @entries_list_array = last_search_result
+            @entries_list_v.value = last_search_result.map { |entry| transform_entry_text(entry) }
 
             @entries_list.selection_set 0
           end
 
-          poll_find_result_reader
+          poll_search_result_reader
         end
       end
 
@@ -187,11 +187,11 @@ module PmSpotlightDaemon
         end
       end
 
-      def deserialize_find_result(serialized_find_result)
-        if serialized_find_result == NO_FILES_FOUND_MESSAGE
+      def deserialize_search_result(serialized_search_result)
+        if serialized_search_result == NO_FILES_FOUND_MESSAGE
           []
         else
-          serialized_find_result.split("\n")
+          serialized_search_result.split("\n")
         end
       end
 

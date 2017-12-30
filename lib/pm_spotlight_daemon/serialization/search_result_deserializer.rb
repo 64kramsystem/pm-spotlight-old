@@ -11,7 +11,7 @@ module PmSpotlightDaemon
     # 2. it buffers the incoming messages; if only part is received, it waits for the remainder
     #    before releasing it.
     #
-    class FindResultDeserializer
+    class SearchResultDeserializer
       TERMINATOR = "\x00"
 
       def initialize(reader, read_limit)
@@ -21,21 +21,21 @@ module PmSpotlightDaemon
       end
 
       def buffered_deserialize(&block)
-        serialized_find_result = @reader.read_nonblock(@read_limit)
+        serialized_search_result = @reader.read_nonblock(@read_limit)
 
-        @buffer << serialized_find_result
+        @buffer << serialized_search_result
 
         if @buffer[-1] == TERMINATOR
-          puts "FindResultDeserializer: received a message terminator; current buffer size: #{@buffer.bytesize}"
+          puts "SearchResultDeserializer: received a message terminator; current buffer size: #{@buffer.bytesize}"
 
           all_messages = @buffer.split(TERMINATOR, -1)
           last_message = all_messages[-2] # last message is the empty token "after" the ending terminator
 
           @buffer = ""
 
-          find_result = last_message.split("\n")
+          search_result = last_message.split("\n")
 
-          yield find_result
+          yield search_result
         end
       rescue IO::WaitReadable, IO::EAGAINWaitReadable
         # nothing available at the moment.
