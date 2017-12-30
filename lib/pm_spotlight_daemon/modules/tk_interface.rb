@@ -1,3 +1,4 @@
+require 'fileutils'
 require 'tk'
 require 'open3'
 
@@ -25,7 +26,6 @@ module PmSpotlightDaemon
         bind_keyboard_events
 
         create_fifo_file
-        trap_process_signals
       end
 
       def show
@@ -117,12 +117,12 @@ module PmSpotlightDaemon
 
       def create_fifo_file
         if ! File.exists?(FIFO_FILENAME)
+          config_dir = File.dirname(FIFO_FILENAME)
+
+          FileUtils.mkdir_p(config_dir) if ! Dir.exists?(config_dir)
+
           checked_shell_execution "mkfifo #{FIFO_FILENAME.shellescape}"
         end
-      end
-
-      def delete_fifo_file
-        File.delete(FIFO_FILENAME)
       end
 
       def listen_process_events(first_start:)
@@ -137,11 +137,6 @@ module PmSpotlightDaemon
         else
           $stderr.puts "Unexpected command: #{command.inspect}"
         end
-      end
-
-      def trap_process_signals
-        trap('INT') { delete_fifo_file; raise Interrupt }
-        trap('TERM') { delete_fifo_file }
       end
 
       #####################
