@@ -25,7 +25,7 @@ After this, execute the following from the PMsS directory:
 
 ```sh
 bundle install
-./configure.sh
+utils/configure.sh
 ```
 
 By default, PMsS will search in the `Desktop` directory, and the top-level directories of `$HOME`.
