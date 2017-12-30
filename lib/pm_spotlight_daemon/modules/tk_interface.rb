@@ -1,8 +1,10 @@
 require 'fileutils'
 require 'tk'
 require 'open3'
+require 'shellwords'
 
 require_relative '../../pm_spotlight_shared/shared_configuration'
+require_relative '../serialization/find_result_deserializer'
 
 module PmSpotlightDaemon
   module Modules
@@ -15,8 +17,9 @@ module PmSpotlightDaemon
 
       include PmSpotlightShared::SharedConfiguration
 
-      def initialize(finder)
-        @finder = finder
+      def initialize(find_pattern_writer, find_result_reader)
+        @find_pattern_writer = find_pattern_writer
+        @find_result_deserializer = PmSpotlightDaemon::Serialization::FindResultDeserializer.new(find_result_reader, LIMIT_FIND_RESULT_MESSAGE_SIZE)
 
         @entries_list_array  = []
         @entries_list_v      = TkVariable.new
@@ -26,6 +29,8 @@ module PmSpotlightDaemon
         bind_keyboard_events
 
         create_fifo_file
+
+        poll_find_result_reader
       end
 
       def show
@@ -107,11 +112,10 @@ module PmSpotlightDaemon
           #
           @entries_list_v.value = []
 
-          @entries_list_array = find_files_for_pattern(@pattern_input_v.value)
+          puts "TkInterface: sending #{@pattern_input_v.value.inspect} to find_pattern_writer"
 
-          @entries_list_v.value = @entries_list_array.map { |entry| transform_entry_text(entry) }
-
-          @entries_list.selection_set 0
+          @find_pattern_writer.write(@pattern_input_v.value)
+          @find_pattern_writer.flush
         end
       end
 
@@ -126,6 +130,8 @@ module PmSpotlightDaemon
       end
 
       def listen_process_events(first_start:)
+        puts "TkInterface: reading command from FIFO..."
+
         command = IO.read(FIFO_FILENAME.shellescape).rstrip
 
         case command
@@ -136,6 +142,19 @@ module PmSpotlightDaemon
           delete_fifo_file
         else
           $stderr.puts "Unexpected command: #{command.inspect}"
+        end
+      end
+
+      def poll_find_result_reader
+        @root.after(FIND_RESULT_POLL_TIME) do
+          @find_result_deserializer.buffered_deserialize do |last_find_result|
+            @entries_list_array = last_find_result
+            @entries_list_v.value = last_find_result.map { |entry| transform_entry_text(entry) }
+
+            @entries_list.selection_set 0
+          end
+
+          poll_find_result_reader
         end
       end
 
@@ -170,11 +189,11 @@ module PmSpotlightDaemon
         listen_process_events(first_start: false)
       end
 
-      def find_files_for_pattern(pattern)
-        if pattern == ''
+      def deserialize_find_result(serialized_find_result)
+        if serialized_find_result == NO_FILES_FOUND_MESSAGE
           []
         else
-          @finder.find_files(pattern)
+          serialized_find_result.split("\n")
         end
       end
 

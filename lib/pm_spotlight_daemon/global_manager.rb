@@ -1,4 +1,4 @@
-require_relative 'modules/find_finder'
+require_relative 'find_manager'
 require_relative 'modules/tk_interface'
 
 module PmSpotlightDaemon
@@ -10,9 +10,37 @@ module PmSpotlightDaemon
     end
 
     def start
-      finder = PmSpotlightDaemon::Modules::FindFinder.new(@search_paths, skip_paths: @skip_paths, include_directories: @include_directories)
+      Thread.abort_on_exception = true
 
-      PmSpotlightDaemon::Modules::TkInterface.new(finder).show
+      find_manager_thread, find_pattern_writer, find_result_reader = init_find_manager
+
+      init_interface(find_pattern_writer, find_result_reader)
+
+      find_manager_thread.join
+    end
+
+    private
+
+    def init_find_manager
+      find_result_reader, find_result_writer = IO.pipe
+      find_pattern_reader, find_pattern_writer = IO.pipe
+
+      find_manager_thread = Thread.new do
+        find_manager = PmSpotlightDaemon::FindManager.new(
+          find_pattern_reader, find_result_writer,
+          @search_paths, skip_paths: @skip_paths, include_directories: @include_directories
+        )
+
+        find_manager.listen
+      end
+
+      [find_manager_thread, find_pattern_writer, find_result_reader]
+    end
+
+    def init_interface(find_pattern_writer, find_result_reader)
+      Thread.new do
+        PmSpotlightDaemon::Modules::TkInterface.new(find_pattern_writer, find_result_reader).show
+      end
     end
   end
 end
