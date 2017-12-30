@@ -7,7 +7,7 @@ set -o errexit
 configfile_filename="$HOME/.spotlightd"
 launcher_filename="$HOME/.config/autostart/Spotlightd.desktop"
 
-spotlight_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+spotlight_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 default_configuration="\
 search_paths=Desktop:$HOME{1}
@@ -19,7 +19,7 @@ Type=Application
 Name=Spotlightd
 Comment=Spotlight daemon
 X-GNOME-Autostart-enabled=true
-Exec=$spotlight_directory/spotlightd.rb -d"
+Exec=$spotlight_directory/lib/pm_spotlight_daemon/daemon.rb -d"
 
 # HELPERS ######################################################################
 
@@ -52,7 +52,7 @@ The installation is completed! Now you'll need to bind the client to a global ho
 
 The exact steps depend on your desktop environment; the procedure is simply to bind the command:
 
-    $spotlight_directory/spotlight_client.rb show
+    $spotlight_directory/lib/pm_spotlight_client/client.rb show
 
 to a key combination (e.g. Super+space).
 
@@ -60,7 +60,7 @@ On XFCE, for example:
 
 - open the keyboard settings (XFCE Main menu -> \`Keyboard\` -> \`Application Shortcuts\`
 - click on \`Add\`
-- type \`/path/to/spotlight_client.rb show\`, and OK
+- type \`/path/to/lib/pm_spotlight_client/client.rb show\`, and OK
 - type Super+space
 
 Bye!" 20 89
