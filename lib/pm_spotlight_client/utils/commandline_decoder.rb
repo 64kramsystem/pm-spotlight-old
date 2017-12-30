@@ -1,11 +1,11 @@
 require 'simple_scripting/argv'
 
-require_relative '../../pm_spotlight_shared/fifo_metadata'
+require_relative '../../pm_spotlight_shared/shared_configuration'
 
 module PmSpotlightClient
   module Utils
     class CommandlineDecoder
-      include FifoMetadata
+      include PmSpotlightShared::SharedConfiguration
 
       LONG_HELP = <<~STR
         Usage: spotlight_client.rb <operation>

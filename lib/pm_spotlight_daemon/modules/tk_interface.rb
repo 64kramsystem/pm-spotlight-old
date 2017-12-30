@@ -1,7 +1,7 @@
 require 'tk'
 require 'open3'
 
-require_relative '../../pm_spotlight_shared/fifo_metadata'
+require_relative '../../pm_spotlight_shared/shared_configuration'
 
 module PmSpotlightDaemon
   module Modules
@@ -12,7 +12,7 @@ module PmSpotlightDaemon
       KEYCODE_ENTER      = 36
       KEYCODE_ARROW_DOWN = 116
 
-      include FifoMetadata
+      include PmSpotlightShared::SharedConfiguration
 
       def initialize(finder)
         @finder = finder

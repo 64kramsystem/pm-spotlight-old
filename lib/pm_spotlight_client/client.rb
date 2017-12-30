@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
 
-require_relative '../pm_spotlight_shared/fifo_metadata'
-require_relative 'utils/commandline_decoder.rb'
+require_relative '../pm_spotlight_shared/shared_configuration'
+require_relative 'utils/commandline_decoder'
 
 module PmSpotlightClient
   class Client
-    include FifoMetadata
+    include PmSpotlightShared::SharedConfiguration
 
     def execute(command)
       check_file
