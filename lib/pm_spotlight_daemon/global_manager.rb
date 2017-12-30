@@ -1,3 +1,4 @@
+require_relative 'commands_listener'
 require_relative 'find_manager'
 require_relative 'modules/tk_interface'
 
@@ -12,20 +13,33 @@ module PmSpotlightDaemon
     def start
       Thread.abort_on_exception = true
 
-      find_manager_thread, find_pattern_writer, find_result_reader = init_find_manager
+      commands_reader = init_commands_listener
 
-      init_interface(find_pattern_writer, find_result_reader)
+      find_pattern_writer, find_result_reader = init_find_manager
 
-      find_manager_thread.join
+      interface_thread = init_interface(commands_reader, find_pattern_writer, find_result_reader)
+
+      interface_thread.join
     end
 
     private
+
+    def init_commands_listener
+      commands_reader, commands_writer = IO.pipe
+
+      Thread.new do
+        commands_listener = PmSpotlightDaemon::CommandsListener.new(commands_writer)
+        commands_listener.listen
+      end
+
+      commands_reader
+    end
 
     def init_find_manager
       find_result_reader, find_result_writer = IO.pipe
       find_pattern_reader, find_pattern_writer = IO.pipe
 
-      find_manager_thread = Thread.new do
+      Thread.new do
         find_manager = PmSpotlightDaemon::FindManager.new(
           find_pattern_reader, find_result_writer,
           @search_paths, skip_paths: @skip_paths, include_directories: @include_directories
@@ -34,12 +48,12 @@ module PmSpotlightDaemon
         find_manager.listen
       end
 
-      [find_manager_thread, find_pattern_writer, find_result_reader]
+      [find_pattern_writer, find_result_reader]
     end
 
-    def init_interface(find_pattern_writer, find_result_reader)
+    def init_interface(commands_reader, find_pattern_writer, find_result_reader)
       Thread.new do
-        PmSpotlightDaemon::Modules::TkInterface.new(find_pattern_writer, find_result_reader).show
+        PmSpotlightDaemon::Modules::TkInterface.new(commands_reader, find_pattern_writer, find_result_reader).start
       end
     end
   end

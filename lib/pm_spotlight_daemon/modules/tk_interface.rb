@@ -1,7 +1,4 @@
-require 'fileutils'
 require 'tk'
-require 'open3'
-require 'shellwords'
 
 require_relative '../../pm_spotlight_shared/shared_configuration'
 require_relative '../serialization/find_result_deserializer'
@@ -17,7 +14,8 @@ module PmSpotlightDaemon
 
       include PmSpotlightShared::SharedConfiguration
 
-      def initialize(find_pattern_writer, find_result_reader)
+      def initialize(commands_reader, find_pattern_writer, find_result_reader)
+        @commands_reader = commands_reader
         @find_pattern_writer = find_pattern_writer
         @find_result_deserializer = PmSpotlightDaemon::Serialization::FindResultDeserializer.new(find_result_reader, LIMIT_FIND_RESULT_MESSAGE_SIZE)
 
@@ -28,13 +26,12 @@ module PmSpotlightDaemon
         instantiate_widgets
         bind_keyboard_events
 
-        create_fifo_file
-
+        poll_commands_reader
         poll_find_result_reader
       end
 
-      def show
-        listen_process_events(first_start: true)
+      def start
+        start_interface_hidden
       end
 
       private
@@ -79,7 +76,6 @@ module PmSpotlightDaemon
         @root.bind('Key') do |event|
           if event.keycode == KEYCODE_ESC
             hide_gui
-            listen_process_events(first_start: false)
           end
         end
 
@@ -119,29 +115,35 @@ module PmSpotlightDaemon
         end
       end
 
-      def create_fifo_file
-        if ! File.exists?(FIFO_FILENAME)
-          config_dir = File.dirname(FIFO_FILENAME)
-
-          FileUtils.mkdir_p(config_dir) if ! Dir.exists?(config_dir)
-
-          checked_shell_execution "mkfifo #{FIFO_FILENAME.shellescape}"
-        end
+      def start_interface_hidden
+        hide_gui
+        Tk.mainloop
       end
 
-      def listen_process_events(first_start:)
-        puts "TkInterface: reading command from FIFO..."
+      #####################
+      # Readers polling
+      #####################
 
-        command = IO.read(FIFO_FILENAME.shellescape).rstrip
+      def poll_commands_reader
+        @root.after(EVENTS_POLL_TIME) do
+          begin
+            command = @commands_reader.read_nonblock(MAX_COMMANDS_BYTESIZE)
 
-        case command
-        when COMMAND_SHOW
-          show_gui(first_start: first_start)
-        when COMMAND_QUIT
-          close_gui
-          delete_fifo_file
-        else
-          $stderr.puts "Unexpected command: #{command.inspect}"
+            puts "TkInterface: has read a #{command.inspect} command from commands_reader"
+
+            case command
+            when COMMAND_SHOW
+              show_gui
+            when COMMAND_QUIT
+              destroy_gui
+            else
+              raise "Unexpected command: #{command.inspect}"
+            end
+          rescue IO::WaitReadable, IO::EAGAINWaitReadable
+            # nothing available at the moment.
+          ensure
+            poll_commands_reader
+          end
         end
       end
 
@@ -166,18 +168,13 @@ module PmSpotlightDaemon
         @root.withdraw
       end
 
-      def show_gui(first_start:)
+      def show_gui
         @pattern_input.focus
-
-        if first_start
-          Tk.mainloop
-        else
-          @pattern_input_v.value = ''
-          @root.deiconify
-        end
+        @pattern_input_v.value = ''
+        @root.deiconify
       end
 
-      def close_gui
+      def destroy_gui
         @root.destroy
       end
 
@@ -185,8 +182,6 @@ module PmSpotlightDaemon
         hide_gui
 
         execute_in_background(filename)
-
-        listen_process_events(first_start: false)
       end
 
       def deserialize_find_result(serialized_find_result)
@@ -220,13 +215,6 @@ module PmSpotlightDaemon
       #
       def execute_in_background(filename)
         system "xdg-open #{filename.shellescape}"
-      end
-
-      def checked_shell_execution(command)
-        Open3.popen3(command) do |_, _, stderr, wait_thread|
-          stderr_content = stderr.read
-          raise stderr_content if ! wait_thread.value.success?
-        end
       end
     end
   end

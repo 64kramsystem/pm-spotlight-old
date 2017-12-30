@@ -3,8 +3,11 @@ module PmSpotlightShared
     COMMAND_SHOW = 'show'.freeze
     COMMAND_QUIT = 'quit'.freeze
 
+    MAX_COMMANDS_BYTESIZE = [COMMAND_SHOW, COMMAND_QUIT].map(&:bytesize).max
+
     FIFO_FILENAME = File.expand_path('~/.config/spotlightd/commands.fifo').freeze
 
+    EVENTS_POLL_TIME = 100 # in milliseconds
     FIND_RESULT_POLL_TIME = 100 # in milliseconds
 
     NO_FILES_FOUND_MESSAGE = "\x00"
