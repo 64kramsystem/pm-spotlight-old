@@ -2,6 +2,7 @@ require 'tk'
 
 require_relative '../../pm_spotlight_shared/shared_configuration'
 require_relative '../serialization/find_result_deserializer'
+require_relative '../utils/files_opener'
 
 module PmSpotlightDaemon
   module Modules
@@ -181,7 +182,9 @@ module PmSpotlightDaemon
       def open_file(filename)
         hide_gui
 
-        execute_in_background(filename)
+        Thread.new do
+          PmSpotlightDaemon::Utils::FilesOpener.new.open_in_background(filename)
+        end
       end
 
       def deserialize_find_result(serialized_find_result)
@@ -198,23 +201,6 @@ module PmSpotlightDaemon
         # It's possible that a file is at the root level, thus the '||'
         #
         text[%r{[^/]*/[^/]*$}] || text
-      end
-
-      # Choosing the right API is not simple, also because it depends on the spotlightd GUI architecture
-      # (and on `xdg-open`).
-      # With the current (experimental) architecture:
-      #
-      # - `fork()` doesn't work, as it raises an error about X multithreading on the second invocation
-      # - backticks (``` `` ```) will block (eg. when opening a libreoffice document)
-      #
-      # Interestingly, while `system()` is a blocking API like the backticks, it doesn't block; the only
-      # thing that may be related is that `system()` doesn't read the stdout, although it's not clear
-      # who `xdg-open` relates to it, since it has no visible output.
-      #
-      # Note that `system()` won't block because `xdg-open` forks the target application and exits.
-      #
-      def execute_in_background(filename)
-        system "xdg-open #{filename.shellescape}"
       end
     end
   end
