@@ -12,7 +12,7 @@ The search locations are configurated by the user in the configuration file.
 
 ## Installation
 
-PMsS requires a Ruby with Tcl/TK support; on Ubuntu, the easiest way is to use the BrightBox precompiled ruby interpreter:
+PMsS requires a Ruby interpreter with Tcl/Tk support; on Ubuntu, the easiest way is to use the BrightBox precompiled ruby interpreter:
 
 ```sh
 $ sudo add-apt-repository -y ppa:brightbox/ruby-ng
@@ -54,24 +54,37 @@ The above example will:
 
 ## Design
 
-PMsS is programmed in Ruby, and uses the Tk, so it requires a Ruby interpreter with Tcl/Tk support (`ruby2.3-tcltk` in Ubuntu).
+The purpose of this project is, beside my personal usage, to provide an example for Ruby simple GUIs development, and message-based concurrent programming.
 
-The daemon is written in the simplest possible way, both the GUI (without threading) and the search (which uses Linux's `find`).
-The client is written in ruby for convenience, and it's trivial (it supports the commands `show` and `quit`).
+### Architecture
 
-Tk has been used because years ago, when I wrote this tool, I tried all the other GUI frameworks, and they all had limitations (e.g. `Shoes`) and/or bugs (e.g. `FXRuby`). Things may have changed in the meanwhile (`FXRuby` fixed the bug after some time).
+PMsS's architecture has been inspired by the microservices philosophy, and Golang; it's a shared-nothing composition of indipendent services (running in threads), which communicate via messages sent through pipes:
 
-This project has no testing, as it was originally written for internal use, although I use it very heavily.
+- `GlobalManager`: initializes/coordinates the services
+  - `CommandsListener`: listens for GUI commands (show/quit)
+  - `SearchManager`: listen for patterns; sends the list of matching files
+    - `FindSearch`: the current search backend, which uses `find`
+  - `TkInterface`: listens for GUI commands and for find results; sends patterns typed by the user
 
-Its purpose (as open source project) is to provide an example for writing a simple Ruby GUI application.
+This gives significant advantages (for example, services can be swapped trivially, as long as they respect the messaging protocols), but also some complexities (at least a basic message brokering needs to be implemented).
+
+### GUI Toolkit
+
+Tk has been used because years ago, when I wrote this tool, I tried all the other GUI frameworks, and they had limitations (e.g. Shoes 3 was missing a listener) and/or bugs (e.g. FXRuby had a showstopper bug). Things may have changed in the meanwhile (FXRuby fixed the crucial bug after some time; Shoes 3 may have developed the missing listener).
+
+The GUI toolkit will be replaced in the future with something easier to install, and possibly better documented (Tk has a very nice tutorial, but it misses threading information, for which there is little information around).
+
+### Other
+
+This project is in my `script` category (no public users and little complexity), therefore has no testing, although I use it very frequently.
 
 For my testing practices, see other projects, like [Spreadbase](https://github.com/saveriomiroddi/spreadbase) and [Geet](https://github.com/saveriomiroddi/geet).
 
 ## Plan
 
-Plans are provided through GibHub issues. The current priority is to redesign the daemon to use threading/IPC.
+Plans are provided through GibHub issues.
 
 Long-term plans are:
 
-- re-evaluation of the GUI toolkit
-- packaging
+- review the GUI toolkits, and switch if another GUI toolkit provides easier packaging
+- package as gem

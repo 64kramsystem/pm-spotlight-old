@@ -2,7 +2,7 @@ require 'shellwords'
 
 module PmSpotlightDaemon
   module Modules
-    class FindFinder
+    class FindSearch
       # search_paths: an array composed of: String, or `{String => depth}` (for limiting depth)
       #
       def initialize(raw_search_paths, include_directories: false, skip_paths: [])
@@ -11,7 +11,7 @@ module PmSpotlightDaemon
         @skip_paths = skip_paths
       end
 
-      def find_files(raw_pattern)
+      def search_files(raw_pattern)
         entries = @search_paths.flat_map do |depth, search_paths|
           find_files_with_depth(raw_pattern, depth, search_paths)
         end

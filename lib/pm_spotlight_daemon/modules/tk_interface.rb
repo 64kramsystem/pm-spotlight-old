@@ -1,7 +1,8 @@
 require 'tk'
-require 'open3'
 
-require_relative '../../pm_spotlight_shared/fifo_metadata'
+require_relative '../../pm_spotlight_shared/shared_configuration'
+require_relative '../serialization/search_result_deserializer'
+require_relative '../utils/files_opener'
 
 module PmSpotlightDaemon
   module Modules
@@ -12,10 +13,12 @@ module PmSpotlightDaemon
       KEYCODE_ENTER      = 36
       KEYCODE_ARROW_DOWN = 116
 
-      include FifoMetadata
+      include PmSpotlightShared::SharedConfiguration
 
-      def initialize(finder)
-        @finder = finder
+      def initialize(commands_reader, search_pattern_writer, search_result_reader)
+        @commands_reader = commands_reader
+        @search_pattern_writer = search_pattern_writer
+        @search_result_deserializer = PmSpotlightDaemon::Serialization::SearchResultDeserializer.new(search_result_reader, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
 
         @entries_list_array  = []
         @entries_list_v      = TkVariable.new
@@ -24,12 +27,12 @@ module PmSpotlightDaemon
         instantiate_widgets
         bind_keyboard_events
 
-        create_fifo_file
-        trap_process_signals
+        poll_commands_reader
+        poll_search_result_reader
       end
 
-      def show
-        listen_process_events(first_start: true)
+      def start
+        start_interface_hidden
       end
 
       private
@@ -74,7 +77,6 @@ module PmSpotlightDaemon
         @root.bind('Key') do |event|
           if event.keycode == KEYCODE_ESC
             hide_gui
-            listen_process_events(first_start: false)
           end
         end
 
@@ -107,41 +109,56 @@ module PmSpotlightDaemon
           #
           @entries_list_v.value = []
 
-          @entries_list_array = find_files_for_pattern(@pattern_input_v.value)
+          puts "TkInterface: sending #{@pattern_input_v.value.inspect} to search_pattern_writer"
 
-          @entries_list_v.value = @entries_list_array.map { |entry| transform_entry_text(entry) }
-
-          @entries_list.selection_set 0
+          @search_pattern_writer.write(@pattern_input_v.value)
+          @search_pattern_writer.flush
         end
       end
 
-      def create_fifo_file
-        if ! File.exists?(FIFO_FILENAME)
-          checked_shell_execution "mkfifo #{FIFO_FILENAME.shellescape}"
+      def start_interface_hidden
+        hide_gui
+        Tk.mainloop
+      end
+
+      #####################
+      # Readers polling
+      #####################
+
+      def poll_commands_reader
+        @root.after(EVENTS_POLL_TIME) do
+          begin
+            command = @commands_reader.read_nonblock(MAX_COMMANDS_BYTESIZE)
+
+            puts "TkInterface: has read a #{command.inspect} command from commands_reader"
+
+            case command
+            when COMMAND_SHOW
+              show_gui
+            when COMMAND_QUIT
+              destroy_gui
+            else
+              raise "Unexpected command: #{command.inspect}"
+            end
+          rescue IO::WaitReadable, IO::EAGAINWaitReadable
+            # nothing available at the moment.
+          ensure
+            poll_commands_reader
+          end
         end
       end
 
-      def delete_fifo_file
-        File.delete(FIFO_FILENAME)
-      end
+      def poll_search_result_reader
+        @root.after(SEARCH_RESULT_POLL_TIME) do
+          @search_result_deserializer.buffered_deserialize do |last_search_result|
+            @entries_list_array = last_search_result
+            @entries_list_v.value = last_search_result.map { |entry| transform_entry_text(entry) }
 
-      def listen_process_events(first_start:)
-        command = IO.read(FIFO_FILENAME.shellescape).rstrip
+            @entries_list.selection_set 0
+          end
 
-        case command
-        when COMMAND_SHOW
-          show_gui(first_start: first_start)
-        when COMMAND_QUIT
-          close_gui
-          delete_fifo_file
-        else
-          $stderr.puts "Unexpected command: #{command.inspect}"
+          poll_search_result_reader
         end
-      end
-
-      def trap_process_signals
-        trap('INT') { delete_fifo_file; raise Interrupt }
-        trap('TERM') { delete_fifo_file }
       end
 
       #####################
@@ -152,34 +169,29 @@ module PmSpotlightDaemon
         @root.withdraw
       end
 
-      def show_gui(first_start:)
+      def show_gui
         @pattern_input.focus
-
-        if first_start
-          Tk.mainloop
-        else
-          @pattern_input_v.value = ''
-          @root.deiconify
-        end
+        @pattern_input_v.value = ''
+        @root.deiconify
       end
 
-      def close_gui
+      def destroy_gui
         @root.destroy
       end
 
       def open_file(filename)
         hide_gui
 
-        execute_in_background(filename)
-
-        listen_process_events(first_start: false)
+        Thread.new do
+          PmSpotlightDaemon::Utils::FilesOpener.new.open_in_background(filename)
+        end
       end
 
-      def find_files_for_pattern(pattern)
-        if pattern == ''
+      def deserialize_search_result(serialized_search_result)
+        if serialized_search_result == NO_FILES_FOUND_MESSAGE
           []
         else
-          @finder.find_files(pattern)
+          serialized_search_result.split("\n")
         end
       end
 
@@ -189,30 +201,6 @@ module PmSpotlightDaemon
         # It's possible that a file is at the root level, thus the '||'
         #
         text[%r{[^/]*/[^/]*$}] || text
-      end
-
-      # Choosing the right API is not simple, also because it depends on the spotlightd GUI architecture
-      # (and on `xdg-open`).
-      # With the current (experimental) architecture:
-      #
-      # - `fork()` doesn't work, as it raises an error about X multithreading on the second invocation
-      # - backticks (``` `` ```) will block (eg. when opening a libreoffice document)
-      #
-      # Interestingly, while `system()` is a blocking API like the backticks, it doesn't block; the only
-      # thing that may be related is that `system()` doesn't read the stdout, although it's not clear
-      # who `xdg-open` relates to it, since it has no visible output.
-      #
-      # Note that `system()` won't block because `xdg-open` forks the target application and exits.
-      #
-      def execute_in_background(filename)
-        system "xdg-open #{filename.shellescape}"
-      end
-
-      def checked_shell_execution(command)
-        Open3.popen3(command) do |_, _, stderr, wait_thread|
-          stderr_content = stderr.read
-          raise stderr_content if ! wait_thread.value.success?
-        end
       end
     end
   end
