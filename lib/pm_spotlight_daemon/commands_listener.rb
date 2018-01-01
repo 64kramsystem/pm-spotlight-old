@@ -1,3 +1,6 @@
+require 'fileutils'
+require 'open3'
+
 require_relative '../pm_spotlight_shared/shared_configuration'
 
 module PmSpotlightDaemon
