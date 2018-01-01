@@ -105,14 +105,18 @@ module PmSpotlightDaemon
         #  2. is raised before the key value is actually inserted
         #
         @pattern_input_v.trace('w') do
-          # Empty list while (before) searching, in case it takes long
-          #
-          @entries_list_v.value = []
+          if @pattern_input_v.value.size > PATTERN_SIZE_LIMIT
+            @pattern_input_v.value = @pattern_input_v.value[0, PATTERN_SIZE_LIMIT]
+          else
+            # Empty list while (before) searching, in case it takes long
+            #
+            @entries_list_v.value = []
 
-          puts "TkInterface: sending #{@pattern_input_v.value.inspect} to search_pattern_writer"
+            puts "TkInterface: sending #{@pattern_input_v.value.inspect} to search_pattern_writer"
 
-          @search_pattern_writer.write(@pattern_input_v.value)
-          @search_pattern_writer.flush
+            @search_pattern_writer.write(@pattern_input_v.value)
+            @search_pattern_writer.flush
+          end
         end
       end
 
