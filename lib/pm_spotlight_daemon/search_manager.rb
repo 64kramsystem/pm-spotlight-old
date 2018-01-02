@@ -1,5 +1,5 @@
 require_relative 'modules/find_search'
-require_relative 'serialization/search_result_serializer'
+require_relative 'messaging/sender'
 require_relative '../pm_spotlight_shared/shared_configuration'
 
 module PmSpotlightDaemon
@@ -24,7 +24,7 @@ module PmSpotlightDaemon
         search_result = search_files(pattern)
         search_result = limit_result(search_result, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
 
-        serialized_search_result = PmSpotlightDaemon::Serialization::SearchResultSerializer.new.serialize(search_result)
+        serialized_search_result = PmSpotlightDaemon::Messaging::Sender.new.serialize(search_result)
 
         puts "SearchManager: writing #{serialized_search_result.bytesize} bytes to search_result_writer"
 

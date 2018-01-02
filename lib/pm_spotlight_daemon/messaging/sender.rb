@@ -1,8 +1,8 @@
 module PmSpotlightDaemon
-  module Serialization
-    # See SearchResultDeserializer documentation.
+  module Messaging
+    # See Receiver documentation.
     #
-    class SearchResultSerializer
+    class Sender
       TERMINATOR = "\x00"
 
       def serialize(search_result)

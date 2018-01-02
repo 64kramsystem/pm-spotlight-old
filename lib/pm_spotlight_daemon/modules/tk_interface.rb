@@ -1,7 +1,7 @@
 require 'tk'
 
 require_relative '../../pm_spotlight_shared/shared_configuration'
-require_relative '../serialization/search_result_deserializer'
+require_relative '../messaging/receiver'
 require_relative '../utils/files_opener'
 
 module PmSpotlightDaemon
@@ -18,7 +18,7 @@ module PmSpotlightDaemon
       def initialize(commands_reader, search_pattern_writer, search_result_reader)
         @commands_reader = commands_reader
         @search_pattern_writer = search_pattern_writer
-        @search_result_deserializer = PmSpotlightDaemon::Serialization::SearchResultDeserializer.new(search_result_reader, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
+        @receiver = PmSpotlightDaemon::Messaging::Receiver.new(search_result_reader, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
 
         @entries_list_array  = []
         @entries_list_v      = TkVariable.new
@@ -154,7 +154,7 @@ module PmSpotlightDaemon
 
       def poll_search_result_reader
         @root.after(SEARCH_RESULT_POLL_TIME) do
-          @search_result_deserializer.buffered_deserialize do |last_search_result|
+          @receiver.buffered_deserialize do |last_search_result|
             @entries_list_array = last_search_result
             @entries_list_v.value = last_search_result.map { |entry| transform_entry_text(entry) }
 

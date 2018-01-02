@@ -1,5 +1,5 @@
 module PmSpotlightDaemon
-  module Serialization
+  module Messaging
     # A trivial serializer, used for de/serializing the messages containing the find results.
     #
     # It requires the messages not to contain null bytes (`\x00`), since they're used as message
@@ -11,7 +11,7 @@ module PmSpotlightDaemon
     # 2. it buffers the incoming messages; if only part is received, it waits for the remainder
     #    before releasing it.
     #
-    class SearchResultDeserializer
+    class Receiver
       TERMINATOR = "\x00"
 
       def initialize(reader, read_limit)
@@ -26,7 +26,7 @@ module PmSpotlightDaemon
         @buffer << serialized_search_result
 
         if @buffer[-1] == TERMINATOR
-          puts "SearchResultDeserializer: received a message terminator; current buffer size: #{@buffer.bytesize}"
+          puts "Receiver: received a message terminator; current buffer size: #{@buffer.bytesize}"
 
           all_messages = @buffer.split(TERMINATOR, -1)
           last_message = all_messages[-2] # last message is the empty token "after" the ending terminator
