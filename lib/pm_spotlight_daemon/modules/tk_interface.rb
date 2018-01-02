@@ -1,7 +1,7 @@
 require 'tk'
 
 require_relative '../../pm_spotlight_shared/shared_configuration'
-require_relative '../serialization/search_result_deserializer'
+require_relative '../messaging/receiver'
 require_relative '../utils/files_opener'
 
 module PmSpotlightDaemon
@@ -17,8 +17,8 @@ module PmSpotlightDaemon
 
       def initialize(commands_reader, search_pattern_writer, search_result_reader)
         @commands_reader = commands_reader
-        @search_pattern_writer = search_pattern_writer
-        @search_result_deserializer = PmSpotlightDaemon::Serialization::SearchResultDeserializer.new(search_result_reader, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
+        @search_pattern_sender = PmSpotlightDaemon::Messaging::Sender.new(self, 'pattern', search_pattern_writer)
+        @search_results_receiver = PmSpotlightDaemon::Messaging::Receiver.new(self, 'search result', search_result_reader, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
 
         @entries_list_array  = []
         @entries_list_v      = TkVariable.new
@@ -112,10 +112,7 @@ module PmSpotlightDaemon
             #
             @entries_list_v.value = []
 
-            puts "TkInterface: sending #{@pattern_input_v.value.inspect} to search_pattern_writer"
-
-            @search_pattern_writer.write(@pattern_input_v.value)
-            @search_pattern_writer.flush
+            @search_pattern_sender.send_message(@pattern_input_v.value)
           end
         end
       end
@@ -154,9 +151,9 @@ module PmSpotlightDaemon
 
       def poll_search_result_reader
         @root.after(SEARCH_RESULT_POLL_TIME) do
-          @search_result_deserializer.buffered_deserialize do |last_search_result|
-            @entries_list_array = last_search_result
-            @entries_list_v.value = last_search_result.map { |entry| transform_entry_text(entry) }
+          @search_results_receiver.read_last_message_nonblock do |last_search_result|
+            @entries_list_array = last_search_result.split("\n")
+            @entries_list_v.value = @entries_list_array.map { |entry| transform_entry_text(entry) }
 
             @entries_list.selection_set 0
           end
