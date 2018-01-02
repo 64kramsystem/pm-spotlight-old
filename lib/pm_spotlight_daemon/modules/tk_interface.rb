@@ -18,7 +18,7 @@ module PmSpotlightDaemon
       def initialize(commands_reader, search_pattern_writer, search_result_reader)
         @commands_reader = commands_reader
         @search_pattern_writer = search_pattern_writer
-        @receiver = PmSpotlightDaemon::Messaging::Receiver.new(search_result_reader, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
+        @search_results_receiver = PmSpotlightDaemon::Messaging::Receiver.new(search_result_reader, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
 
         @entries_list_array  = []
         @entries_list_v      = TkVariable.new
@@ -154,7 +154,7 @@ module PmSpotlightDaemon
 
       def poll_search_result_reader
         @root.after(SEARCH_RESULT_POLL_TIME) do
-          @receiver.read_last_message_nonblock do |last_search_result|
+          @search_results_receiver.read_last_message_nonblock do |last_search_result|
             @entries_list_array = last_search_result.split("\n")
             @entries_list_v.value = @entries_list_array.map { |entry| transform_entry_text(entry) }
 
