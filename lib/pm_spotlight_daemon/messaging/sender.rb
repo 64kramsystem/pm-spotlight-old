@@ -5,8 +5,8 @@ module PmSpotlightDaemon
     class Sender
       TERMINATOR = "\x00"
 
-      def serialize(search_result)
-        search_result.join("\n") + TERMINATOR
+      def send_message(message)
+        message + TERMINATOR
       end
     end
   end

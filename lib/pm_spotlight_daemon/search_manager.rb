@@ -24,7 +24,7 @@ module PmSpotlightDaemon
         search_result = search_files(pattern)
         search_result = limit_result(search_result, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
 
-        serialized_search_result = PmSpotlightDaemon::Messaging::Sender.new.serialize(search_result)
+        serialized_search_result = PmSpotlightDaemon::Messaging::Sender.new.send_message(search_result.join("\n"))
 
         puts "SearchManager: writing #{serialized_search_result.bytesize} bytes to search_result_writer"
 

@@ -20,7 +20,7 @@ module PmSpotlightDaemon
         @read_limit = read_limit
       end
 
-      def buffered_deserialize(&block)
+      def read_last_message_nonblock(&block)
         serialized_search_result = @reader.read_nonblock(@read_limit)
 
         @buffer << serialized_search_result
@@ -33,9 +33,7 @@ module PmSpotlightDaemon
 
           @buffer = ""
 
-          search_result = last_message.split("\n")
-
-          yield search_result
+          yield last_message
         end
       rescue IO::WaitReadable, IO::EAGAINWaitReadable
         # nothing available at the moment.

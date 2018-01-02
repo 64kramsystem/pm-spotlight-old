@@ -154,9 +154,9 @@ module PmSpotlightDaemon
 
       def poll_search_result_reader
         @root.after(SEARCH_RESULT_POLL_TIME) do
-          @receiver.buffered_deserialize do |last_search_result|
-            @entries_list_array = last_search_result
-            @entries_list_v.value = last_search_result.map { |entry| transform_entry_text(entry) }
+          @receiver.read_last_message_nonblock do |last_search_result|
+            @entries_list_array = last_search_result.split("\n")
+            @entries_list_v.value = @entries_list_array.map { |entry| transform_entry_text(entry) }
 
             @entries_list.selection_set 0
           end
