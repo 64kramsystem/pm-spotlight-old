@@ -14,7 +14,9 @@ module PmSpotlightDaemon
     class Receiver
       TERMINATOR = "\x00"
 
-      def initialize(reader, read_limit)
+      def initialize(service_instance, message_description, reader, read_limit)
+        @service_name = extract_service_name(service_instance)
+        @message_description = message_description
         @buffer = ""
         @reader = reader
         @read_limit = read_limit
@@ -27,7 +29,13 @@ module PmSpotlightDaemon
       #
       def read_last_message
         loop do
-          @buffer << blocking_pipe_read(@reader, @read_limit)
+          puts "#{@service_name}: waiting for #{@message_description} data..."
+
+          data_read = blocking_pipe_read(@reader, @read_limit)
+
+          @buffer << data_read
+
+          puts "#{@service_name}: read #{data_read.bytesize} #{@message_description} bytes..."
 
           if @buffer.include?(TERMINATOR)
             last_message, @buffer = extract_message_from_buffer(@buffer)
@@ -49,6 +57,10 @@ module PmSpotlightDaemon
 
       private
 
+      def extract_service_name(service_instance)
+        service_instance.class.to_s.split('::').last
+      end
+
       def blocking_pipe_read(reader, read_buffer_size)
         reader.read_nonblock(read_buffer_size)
       rescue IO::WaitReadable, IO::EAGAINWaitReadable
@@ -57,7 +69,7 @@ module PmSpotlightDaemon
       end
 
       def extract_message_from_buffer(buffer)
-        puts "Receiver: found a full message in the buffer (buffer size: #{buffer.bytesize})"
+        puts "#{@service_name}: found a full message in the #{@message_description} buffer..."
 
         buffer_messages = buffer.split(TERMINATOR, -1)
 

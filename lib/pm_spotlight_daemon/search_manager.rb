@@ -7,26 +7,20 @@ module PmSpotlightDaemon
     include PmSpotlightShared::SharedConfiguration
 
     def initialize(search_pattern_reader, search_result_writer, search_paths, skip_paths: [], include_directories: true)
-      @search_pattern_receiver = PmSpotlightDaemon::Messaging::Receiver.new(search_pattern_reader, PATTERN_SIZE_LIMIT)
-      @search_result_sender = PmSpotlightDaemon::Messaging::Sender.new(search_result_writer)
+      @search_pattern_receiver = PmSpotlightDaemon::Messaging::Receiver.new(self, 'pattern', search_pattern_reader, PATTERN_SIZE_LIMIT)
+      @search_result_sender = PmSpotlightDaemon::Messaging::Sender.new(self, 'search result', search_result_writer)
 
       @search = PmSpotlightDaemon::Modules::FindSearch.new(search_paths, skip_paths: skip_paths, include_directories: include_directories)
     end
 
     def listen
       while true
-        puts "SearchManager: waiting for data from search_pattern_receiver"
-
         pattern = @search_pattern_receiver.read_last_message
-
-        puts "SearchManager: has read #{pattern.inspect} from search_pattern_receiver"
 
         search_result = search_files(pattern)
         search_result = limit_result(search_result, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
 
         search_result_message = search_result.join("\n")
-
-        puts "SearchManager: sending #{search_result_message.bytesize} bytes through search_result_sender"
 
         @search_result_sender.send_message(search_result_message)
       end

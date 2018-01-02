@@ -17,8 +17,8 @@ module PmSpotlightDaemon
 
       def initialize(commands_reader, search_pattern_writer, search_result_reader)
         @commands_reader = commands_reader
-        @search_pattern_sender = PmSpotlightDaemon::Messaging::Sender.new(search_pattern_writer)
-        @search_results_receiver = PmSpotlightDaemon::Messaging::Receiver.new(search_result_reader, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
+        @search_pattern_sender = PmSpotlightDaemon::Messaging::Sender.new(self, 'pattern', search_pattern_writer)
+        @search_results_receiver = PmSpotlightDaemon::Messaging::Receiver.new(self, 'search result', search_result_reader, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
 
         @entries_list_array  = []
         @entries_list_v      = TkVariable.new
@@ -111,8 +111,6 @@ module PmSpotlightDaemon
             # Empty list while (before) searching, in case it takes long
             #
             @entries_list_v.value = []
-
-            puts "TkInterface: sending #{@pattern_input_v.value.inspect} through search_pattern_sender"
 
             @search_pattern_sender.send_message(@pattern_input_v.value)
           end
