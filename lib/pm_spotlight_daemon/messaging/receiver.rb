@@ -30,32 +30,17 @@ module PmSpotlightDaemon
           @buffer << blocking_pipe_read(@reader, @read_limit)
 
           if @buffer.include?(TERMINATOR)
-            puts "Receiver: found a message in the buffer; current buffer size: #{@buffer.bytesize}"
-
-            all_messages = @buffer.split(TERMINATOR, -1)
-
-            # If TERMINATOR is the last character, `[-1]` is an empty string.
-            @buffer = all_messages[-1]
-            last_message = all_messages[-2]
-
+            last_message, @buffer = extract_message_from_buffer(@buffer)
             return last_message
           end
         end
       end
 
       def read_last_message_nonblock(&block)
-        serialized_search_result = @reader.read_nonblock(@read_limit)
+        @buffer << @reader.read_nonblock(@read_limit)
 
-        @buffer << serialized_search_result
-
-        if @buffer[-1] == TERMINATOR
-          puts "Receiver: received a message terminator; current buffer size: #{@buffer.bytesize}"
-
-          all_messages = @buffer.split(TERMINATOR, -1)
-          last_message = all_messages[-2] # last message is the empty token "after" the ending terminator
-
-          @buffer = ""
-
+        if @buffer.include?(TERMINATOR)
+          last_message, @buffer = extract_message_from_buffer(@buffer)
           yield last_message
         end
       rescue IO::WaitReadable, IO::EAGAINWaitReadable
@@ -69,6 +54,18 @@ module PmSpotlightDaemon
       rescue IO::WaitReadable, IO::EAGAINWaitReadable
         IO.select([reader])
         retry
+      end
+
+      def extract_message_from_buffer(buffer)
+        puts "Receiver: found a full message in the buffer (buffer size: #{buffer.bytesize})"
+
+        buffer_messages = buffer.split(TERMINATOR, -1)
+
+        # If TERMINATOR is the last character, `[-1]` is an empty string.
+        new_buffer = buffer_messages[-1]
+        last_message = buffer_messages[-2]
+
+        [last_message, new_buffer]
       end
     end
   end
