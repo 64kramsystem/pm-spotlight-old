@@ -8,7 +8,7 @@ module PmSpotlightDaemon
 
     def initialize(search_pattern_reader, search_result_writer, search_paths, skip_paths: [], include_directories: true)
       @search_pattern_reader = search_pattern_reader
-      @search_result_writer = search_result_writer
+      @search_result_sender = PmSpotlightDaemon::Messaging::Sender.new(search_result_writer)
 
       @search = PmSpotlightDaemon::Modules::FindSearch.new(search_paths, skip_paths: skip_paths, include_directories: include_directories)
     end
@@ -24,12 +24,11 @@ module PmSpotlightDaemon
         search_result = search_files(pattern)
         search_result = limit_result(search_result, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
 
-        serialized_search_result = PmSpotlightDaemon::Messaging::Sender.new.send_message(search_result.join("\n"))
+        search_result_message = search_result.join("\n")
 
-        puts "SearchManager: writing #{serialized_search_result.bytesize} bytes to search_result_writer"
+        puts "SearchManager: sending #{search_result_message.bytesize} bytes through search_result_sender"
 
-        @search_result_writer.write(serialized_search_result)
-        @search_result_writer.flush
+        @search_result_sender.send_message(search_result_message)
       end
     end
 
