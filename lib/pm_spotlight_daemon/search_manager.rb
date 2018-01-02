@@ -7,7 +7,7 @@ module PmSpotlightDaemon
     include PmSpotlightShared::SharedConfiguration
 
     def initialize(search_pattern_reader, search_result_writer, search_paths, skip_paths: [], include_directories: true)
-      @search_pattern_reader = search_pattern_reader
+      @search_pattern_receiver = PmSpotlightDaemon::Messaging::Receiver.new(search_pattern_reader, PATTERN_SIZE_LIMIT)
       @search_result_sender = PmSpotlightDaemon::Messaging::Sender.new(search_result_writer)
 
       @search = PmSpotlightDaemon::Modules::FindSearch.new(search_paths, skip_paths: skip_paths, include_directories: include_directories)
@@ -15,11 +15,11 @@ module PmSpotlightDaemon
 
     def listen
       while true
-        puts "SearchManager: waiting for data from search_pattern_reader"
+        puts "SearchManager: waiting for data from search_pattern_receiver"
 
-        pattern = blocking_pipe_read(@search_pattern_reader, PATTERN_SIZE_LIMIT)
+        pattern = @search_pattern_receiver.read_last_message
 
-        puts "SearchManager: has read #{pattern.inspect} from search_pattern_reader"
+        puts "SearchManager: has read #{pattern.inspect} from search_pattern_receiver"
 
         search_result = search_files(pattern)
         search_result = limit_result(search_result, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
@@ -34,15 +34,8 @@ module PmSpotlightDaemon
 
     private
 
-    def blocking_pipe_read(reader, read_buffer_size)
-      reader.read_nonblock(read_buffer_size)
-    rescue IO::WaitReadable, IO::EAGAINWaitReadable
-      IO.select([@search_pattern_reader])
-      retry
-    end
-
     def search_files(pattern)
-      return '' if pattern.strip.empty?
+      return [] if pattern.strip.empty?
 
       @search.search_files(pattern)
     end
