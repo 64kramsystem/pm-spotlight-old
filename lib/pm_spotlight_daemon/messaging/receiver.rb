@@ -20,6 +20,29 @@ module PmSpotlightDaemon
         @read_limit = read_limit
       end
 
+      # Blocking read.
+      #
+      # Waits until a full message is in the buffer; if a full message and a partial message are in the
+      # buffer, the full message is returned.
+      #
+      def read_last_message
+        loop do
+          @buffer << blocking_pipe_read(@reader, @read_limit)
+
+          if @buffer.include?(TERMINATOR)
+            puts "Receiver: found a message in the buffer; current buffer size: #{@buffer.bytesize}"
+
+            all_messages = @buffer.split(TERMINATOR, -1)
+
+            # If TERMINATOR is the last character, `[-1]` is an empty string.
+            @buffer = all_messages[-1]
+            last_message = all_messages[-2]
+
+            return last_message
+          end
+        end
+      end
+
       def read_last_message_nonblock(&block)
         serialized_search_result = @reader.read_nonblock(@read_limit)
 
@@ -37,6 +60,15 @@ module PmSpotlightDaemon
         end
       rescue IO::WaitReadable, IO::EAGAINWaitReadable
         # nothing available at the moment.
+      end
+
+      private
+
+      def blocking_pipe_read(reader, read_buffer_size)
+        reader.read_nonblock(read_buffer_size)
+      rescue IO::WaitReadable, IO::EAGAINWaitReadable
+        IO.select([reader])
+        retry
       end
     end
   end
