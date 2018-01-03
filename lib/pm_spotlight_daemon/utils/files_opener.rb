@@ -16,7 +16,7 @@ module PmSpotlightDaemon
         # `fork()` will also work, but it needs to be invoked from a thread (if executed from a Tk
         # event), otherwise it will cause problems.
         #
-        system 'xdg-open', filename.shellescape
+        system 'xdg-open', filename
       end
     end
   end
