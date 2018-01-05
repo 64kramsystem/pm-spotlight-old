@@ -1,4 +1,4 @@
-# Poor Man's Spotglight
+# Poor Man's Spotlight
 
 PMsS is a minimal desktop search service for Debian/Ubuntu machines, designed to simply open files/directories, without any indexing.
 
@@ -8,7 +8,7 @@ PMsS is a minimal desktop search service for Debian/Ubuntu machines, designed to
 
 The user types the global hotkey (typically, `Super+space`), which will open a widget; by typing a string (e.g. `game`), a list of matching files/directories will be dynamically presented (e.g. the file `game_of_life.md` and the directory `my_games`); they can be opened by scrolling with the arrows and clicking enter.
 
-The search locations are configurated by the user in the configuration file.
+The search locations are configured by the user in the configuration file.
 
 ## Installation
 
@@ -42,7 +42,7 @@ skip_paths=Desktop/temp_dir
 The format is:
 
 - when a path doesn't start with `/`, it is relative to the home dir
-- in order ot enforce a certain search depth, place it a the end of a path, between curly braces, e.g. `/home/myuser{1}` will find files and directories under `/home/myuser`, but won't recursively search inside the directories.
+- in order to enforce a certain search depth, place it a the end of a path, between curly braces, e.g. `/home/myuser{1}` will find files and directories under `/home/myuser`, but won't recursively search inside the directories.
 
 The above example will:
 
@@ -58,7 +58,7 @@ The purpose of this project is, beside my personal usage, to provide an example 
 
 ### Architecture
 
-PMsS's architecture has been inspired by the microservices philosophy, and Golang; it's a shared-nothing composition of indipendent services (running in threads), which communicate via messages sent through pipes:
+PMsS's architecture has been inspired by the microservices philosophy, and Golang; it's a shared-nothing composition of independent services (running in threads), which communicate via messages sent through pipes:
 
 - `GlobalManager`: initializes/coordinates the services
   - `CommandsListener`: listens for GUI commands (show/quit)
