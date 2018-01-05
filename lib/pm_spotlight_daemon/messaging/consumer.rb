@@ -11,7 +11,7 @@ module PmSpotlightDaemon
     # 2. it buffers the incoming messages; if only part is received, it waits for the remainder
     #    before releasing it.
     #
-    class Receiver
+    class Consumer
       TERMINATOR = "\x00"
 
       def initialize(service_instance, message_description, reader, read_limit)
@@ -27,7 +27,7 @@ module PmSpotlightDaemon
       # Waits until a full message is in the buffer; if a full message and a partial message are in the
       # buffer, the full message is returned.
       #
-      def read_last_message
+      def consume_last_message
         loop do
           puts "#{@service_name}: waiting for #{@message_description} data..."
 
@@ -44,7 +44,7 @@ module PmSpotlightDaemon
         end
       end
 
-      def read_last_message_nonblock(&block)
+      def consume_last_message_nonblock(&block)
         @buffer << @reader.read_nonblock(@read_limit)
 
         if @buffer.include?(TERMINATOR)

@@ -2,9 +2,9 @@ require 'thread'
 
 module PmSpotlightDaemon
   module Messaging
-    # See Receiver documentation.
+    # See Consumer documentation.
     #
-    class Sender
+    class Publisher
       TERMINATOR = "\x00"
 
       def initialize(service_instance, message_description, writer)
@@ -16,7 +16,7 @@ module PmSpotlightDaemon
 
       # Thread-safe; will send only an message at a time.
       #
-      def send_message(message)
+      def publish_message(message)
         raise "Terminator (#{TERMINATOR.inspect}) is not accepted in messages" if message.include?(TERMINATOR)
 
         puts "#{@service_name}: sending #{@message_description} (#{message.bytesize} [+ #{TERMINATOR.bytesize}] bytes)"
