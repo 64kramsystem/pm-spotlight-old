@@ -1,4 +1,5 @@
 require_relative 'modules/find_search'
+require_relative 'messaging/consumer'
 require_relative 'messaging/publisher'
 require_relative '../pm_spotlight_shared/shared_configuration'
 
