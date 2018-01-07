@@ -2,6 +2,10 @@ require 'shellwords'
 
 module PmSpotlightDaemon
   module Modules
+    # Search backed by GNU `find` executed in a subshell. It's faster than pure ruby, but it's not
+    # always possible to terminate and clean forked processes (see InterruptibleJobScheduler in
+    # the `openscripts` project).
+    #
     class FindSearch
       # search_paths: an array composed of: String, or `{String => depth}` (for limiting depth)
       #
@@ -11,7 +15,7 @@ module PmSpotlightDaemon
         @skip_paths = skip_paths
       end
 
-      def search_files(raw_pattern)
+      def search(raw_pattern)
         entries = @search_paths.flat_map do |depth, search_paths|
           find_files_with_depth(raw_pattern, depth, search_paths)
         end

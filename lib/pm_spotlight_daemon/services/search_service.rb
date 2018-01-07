@@ -1,4 +1,4 @@
-require_relative '../modules/find_search'
+require_relative '../modules/pure_ruby_search'
 require_relative '../messaging/consumer'
 require_relative '../messaging/publisher'
 require_relative '../../pm_spotlight_shared/shared_configuration'
@@ -12,7 +12,7 @@ module PmSpotlightDaemon
         @search_pattern_consumer = PmSpotlightDaemon::Messaging::Consumer.new(self, 'pattern', search_pattern_reader, PATTERN_SIZE_LIMIT)
         @search_result_publisher = PmSpotlightDaemon::Messaging::Publisher.new(self, 'search result', search_result_writer)
 
-        @search = PmSpotlightDaemon::Modules::FindSearch.new(search_paths, skip_paths: skip_paths, include_directories: include_directories)
+        @search = PmSpotlightDaemon::Modules::PureRubySearch.new(search_paths, skip_paths: skip_paths, include_directories: include_directories)
       end
 
       def listen
@@ -35,7 +35,7 @@ module PmSpotlightDaemon
       def search_files(pattern)
         return [] if pattern.strip.empty?
 
-        @search.search_files(pattern)
+        @search.search(pattern)
       end
 
       def limit_result(full_result, limit)
