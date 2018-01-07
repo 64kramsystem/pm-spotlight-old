@@ -132,7 +132,7 @@ module PmSpotlightDaemon
           begin
             command = @commands_reader.read_nonblock(MAX_COMMANDS_BYTESIZE)
 
-            puts "TkInterface: has read a #{command.inspect} command from commands_reader"
+            # puts "TkInterface: has read a #{command.inspect} command from commands_reader"
 
             case command
             when COMMAND_SHOW

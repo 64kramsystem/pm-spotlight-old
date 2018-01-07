@@ -19,7 +19,7 @@ module PmSpotlightDaemon
       def publish_message(message)
         raise "Terminator (#{TERMINATOR.inspect}) is not accepted in messages" if message.include?(TERMINATOR)
 
-        puts "#{@service_name}: sending #{@message_description} (#{message.bytesize} [+ #{TERMINATOR.bytesize}] bytes)"
+        # puts "#{@service_name}: sending #{@message_description} (#{message.bytesize} [+ #{TERMINATOR.bytesize}] bytes)"
 
         encoded_message = message + TERMINATOR
 

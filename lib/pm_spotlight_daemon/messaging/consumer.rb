@@ -29,13 +29,13 @@ module PmSpotlightDaemon
       #
       def consume_last_message
         loop do
-          puts "#{@service_name}: waiting for #{@message_description} data..."
+          # puts "#{@service_name}: waiting for #{@message_description} data..."
 
           data_read = blocking_pipe_read(@reader, @read_limit)
 
           @buffer << data_read
 
-          puts "#{@service_name}: read #{data_read.bytesize} #{@message_description} bytes..."
+          # puts "#{@service_name}: read #{data_read.bytesize} #{@message_description} bytes..."
 
           if @buffer.include?(TERMINATOR)
             last_message, @buffer = extract_message_from_buffer(@buffer)
@@ -69,7 +69,7 @@ module PmSpotlightDaemon
       end
 
       def extract_message_from_buffer(buffer)
-        puts "#{@service_name}: found a full message in the #{@message_description} buffer..."
+        # puts "#{@service_name}: found a full message in the #{@message_description} buffer..."
 
         buffer_messages = buffer.split(TERMINATOR, -1)
 

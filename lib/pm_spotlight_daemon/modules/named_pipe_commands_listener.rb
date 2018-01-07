@@ -17,11 +17,11 @@ module PmSpotlightDaemon
 
       def listen
         while true
-          puts "NamedPipeCommandsListener: waiting for command from the FIFO file..."
+          # puts "NamedPipeCommandsListener: waiting for command from the FIFO file..."
 
           command = IO.read(FIFO_FILENAME.shellescape).rstrip
 
-          puts "NamedPipeCommandsListener: has read a #{command.inspect} command from the FIFO file; sending it to commands_writer"
+          # puts "NamedPipeCommandsListener: has read a #{command.inspect} command from the FIFO file; sending it to commands_writer"
 
           @commands_writer.write(command)
           @commands_writer.flush
