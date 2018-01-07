@@ -16,9 +16,7 @@ module PmSpotlightDaemon
           find_files_with_depth(raw_pattern, depth, search_paths)
         end
 
-        entries.uniq!
-
-        sort_entries(entries, raw_pattern)
+        entries.uniq
       end
 
       private
@@ -52,21 +50,6 @@ module PmSpotlightDaemon
         command = "find #{search_paths_option} #{depth_option} #{pattern_option} #{file_type_option} #{skip_paths_option}"
 
         `#{command}`.chomp.split("\n")
-      end
-
-      def sort_entries(entries, raw_pattern)
-        exact_matches = []
-
-        entries.delete_if do |entry|
-          exact_match = File.basename(entry) == raw_pattern
-
-          if exact_match
-            exact_matches << entry
-            true
-          end
-        end
-
-        entries.unshift(*exact_matches)
       end
     end
   end

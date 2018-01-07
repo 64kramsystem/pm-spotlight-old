@@ -2,6 +2,7 @@ require 'tk'
 
 require_relative '../../pm_spotlight_shared/shared_configuration'
 require_relative '../messaging/consumer'
+require_relative '../messaging/publisher'
 require_relative '../utils/files_opener'
 
 module PmSpotlightDaemon

@@ -62,7 +62,7 @@ PMsS's architecture has been inspired by the microservices philosophy, and Golan
 
 - `GlobalManager`: initializes/coordinates the services
   - `CommandsListener`: listens for GUI commands (show/quit)
-  - `SearchManager`: listen for patterns; sends the list of matching files
+  - `SearchService`: listen for patterns; sends the list of matching files
     - `FindSearch`: the current search backend, which uses `find`
   - `TkInterface`: listens for GUI commands and for find results; sends patterns typed by the user
 
