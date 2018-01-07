@@ -1,5 +1,6 @@
 require_relative 'modules/named_pipe_commands_listener'
 require_relative 'services/search_service'
+require_relative 'modules/basic_filenames_sorter'
 require_relative 'modules/tk_interface'
 
 module PmSpotlightDaemon
@@ -15,9 +16,11 @@ module PmSpotlightDaemon
 
       commands_reader = init_named_pipe_commands_listener
 
-      search_pattern_writer, search_result_reader = init_search_service
+      search_pattern_writer, raw_search_result_reader = init_search_service
 
-      interface_thread = init_interface(commands_reader, search_pattern_writer, search_result_reader)
+      sorted_search_result_reader = init_result_sorting_module(raw_search_result_reader)
+
+      interface_thread = init_interface(commands_reader, search_pattern_writer, sorted_search_result_reader)
 
       interface_thread.join
     end
@@ -49,6 +52,20 @@ module PmSpotlightDaemon
       end
 
       [search_pattern_writer, search_result_reader]
+    end
+
+    def init_result_sorting_module(raw_search_result_reader)
+      sorted_search_result_reader, sorted_search_result_writer = IO.pipe
+
+      Thread.new do
+        sorting_module = PmSpotlightDaemon::Modules::BasicFilenamesSorter.new(
+          raw_search_result_reader, sorted_search_result_writer,
+        )
+
+        sorting_module.listen
+      end
+
+      sorted_search_result_reader
     end
 
     def init_interface(commands_reader, search_pattern_writer, search_result_reader)

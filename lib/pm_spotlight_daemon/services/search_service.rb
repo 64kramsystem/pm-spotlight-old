@@ -22,7 +22,9 @@ module PmSpotlightDaemon
           search_result = search_files(pattern)
           search_result = limit_result(search_result, LIMIT_SEARCH_RESULT_MESSAGE_SIZE)
 
-          search_result_message = search_result.join("\n")
+          # This message contains both the pattern and the result; the pattern may be used by the
+          # sorter.
+          search_result_message = pattern + "\n" + search_result.join("\n")
 
           @search_result_publisher.publish_message(search_result_message)
         end
