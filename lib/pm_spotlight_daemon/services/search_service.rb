@@ -8,16 +8,20 @@ module PmSpotlightDaemon
     class SearchService
       include PmSpotlightShared::SharedConfiguration
 
+      INTERRUPT_SEARCH_THREAD_VARIABLE = 'search_interrupted'
+
       def initialize(search_pattern_reader, search_result_writer, search_paths, skip_paths: [], include_directories: true)
         @search_pattern_consumer = PmSpotlightDaemon::Messaging::Consumer.new(self, 'pattern', search_pattern_reader, PATTERN_SIZE_LIMIT)
         @search_result_publisher = PmSpotlightDaemon::Messaging::Publisher.new(self, 'search result', search_result_writer)
 
-        @search_paths = search_paths
-        @skip_paths = skip_paths
-        @include_directories = include_directories
-
         @result_write_mutex = Mutex.new
-        @running_search = nil
+        @active_thread = nil
+
+        # The search instance is shared, but the only state it has is the interruption variable,
+        # which is thread-local.
+        @search = PmSpotlightDaemon::Modules::PureRubySearch.new(
+          search_paths, skip_paths: skip_paths, include_directories: include_directories
+        )
       end
 
       def listen
@@ -25,30 +29,33 @@ module PmSpotlightDaemon
           pattern = @search_pattern_consumer.consume_last_message
           pattern = pattern.strip
 
-          interrupt_running_search if search_running?
+          interrupt_active_search if existing_active_search?
 
           # This is actually a quite important optimization, since an empty pattern is sent
           # on the first GUI run, and when the user cleans the pattern.
           if pattern.empty?
             send_result(pattern, [])
           else
-            @running_search = schedule_search(pattern)
+            @active_thread = schedule_search(pattern)
           end
         end
       end
 
       private
 
-      def search_running?
-        !@running_search.nil?
+      def existing_active_search?
+        !@active_thread.nil?
       end
 
       def process_pattern(raw_pattern)
         "*#{pattern.strip}*"
       end
 
-      def interrupt_running_search
-        @running_search.interrupt_search
+      def interrupt_active_search
+        @active_thread.thread_variable_set(INTERRUPT_SEARCH_THREAD_VARIABLE, true)
+
+        # After interrupting it, it's not a service concern anymore.
+        @active_thread = nil
       end
 
       def send_result(pattern, result)
@@ -62,12 +69,8 @@ module PmSpotlightDaemon
       end
 
       def schedule_search(pattern)
-        search = PmSpotlightDaemon::Modules::PureRubySearch.new(
-          @search_paths, skip_paths: @skip_paths, include_directories: @include_directories
-        )
-
         Thread.new do
-          result = search.search("*#{pattern}*")
+          result = @search.search("*#{pattern}*")
 
           # If the interruption happens here, for simplicity, we consider it too late.
           # Sending a result takes negligible time, anyway.
@@ -77,8 +80,6 @@ module PmSpotlightDaemon
             send_result(pattern, result)
           end
         end
-
-        search
       end
 
       def limit_result(full_result, limit)

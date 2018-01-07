@@ -28,19 +28,6 @@ module PmSpotlightDaemon
         @paths = paths
         @include_directories = include_directories
         @skip_paths = skip_paths
-
-        # Using a mutex takes ~6% of the time.
-        @interrupt_search_mutex = Mutex.new
-      end
-
-      # Call this to true in order to stop the search any time; used for multithreading contexts.
-      #
-      # This method is thread-safe.
-      #
-      def interrupt_search
-        @interrupt_search_mutex.synchronize do
-          @search_interrupted = true
-        end
       end
 
       # GNU `find`-style finder.
@@ -52,6 +39,8 @@ module PmSpotlightDaemon
       #   case insensitive
       #
       def search(pattern)
+        Thread.current.thread_variable_set(PmSpotlightDaemon::Services::SearchService::INTERRUPT_SEARCH_THREAD_VARIABLE, false)
+
         # Mutable design in this case is a tradeoff with simpler code.
         result = []
         pattern_regex = Regexp.new(Regexp.escape(pattern).gsub('\*', '.*'))
@@ -120,9 +109,7 @@ module PmSpotlightDaemon
       end
 
       def search_interrupted?
-        @interrupt_search_mutex.synchronize do
-          @search_interrupted
-        end
+        Thread.current.thread_variable_get(PmSpotlightDaemon::Services::SearchService::INTERRUPT_SEARCH_THREAD_VARIABLE)
       end
 
       def special_file?(file_basename)
