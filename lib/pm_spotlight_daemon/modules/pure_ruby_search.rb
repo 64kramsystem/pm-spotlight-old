@@ -31,23 +31,6 @@ module PmSpotlightDaemon
 
         # Using a mutex takes ~6% of the time.
         @interrupt_search_mutex = Mutex.new
-
-        reset_interrupt_state
-      end
-
-      # When using a shared InterruptSearch instance, call this after interrupting a search
-      # (otherwise subsequent searches will exit immediately).
-      #
-      # This action can't be performed automatically at the beginning of #search, since in theory,
-      # if #search would take a Very Long Time™ to start, an interruption could come earlier, and
-      # then search would take place.
-      # Therefore, the interruption lifecycle must be handled by the search service.
-      #
-      # This method is **not** thread-safe, as it's meant to be execute when the wrapping #search
-      # thread is dead.
-      #
-      def reset_interrupt_state
-        @search_interrupted = false
       end
 
       # Call this to true in order to stop the search any time; used for multithreading contexts.
