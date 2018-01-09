@@ -15,6 +15,8 @@ module PmSpotlightDaemon
 
       class InterruptSearch < StandardError; end
 
+      STOP_SIGNAL = 'S'
+
       # paths:
       #   an array composed of: String, or `{String => maxdepth}`; `maxdepth` is in GNU `find`
       #   format - `1` will search the children, but not enter subdirectories.
@@ -38,9 +40,7 @@ module PmSpotlightDaemon
       #   matches a file when is it found as substring of the basename; supports the `*` wildcard;
       #   case insensitive
       #
-      def search(pattern)
-        Thread.current.thread_variable_set(PmSpotlightDaemon::Services::SearchService::INTERRUPT_SEARCH_THREAD_VARIABLE, false)
-
+      def search(pattern, stop_signal_reader)
         # Mutable design in this case is a tradeoff with simpler code.
         result = []
         pattern_regex = Regexp.new(Regexp.escape(pattern).gsub('\*', '.*'))
@@ -55,7 +55,7 @@ module PmSpotlightDaemon
           result << path if @include_directories && name_matches?(pattern_regex, File.basename(path))
 
           if !skip_path?(path)
-            recursive_find(path, pattern_regex, result, maxdepth: maxdepth)
+            recursive_find(path, pattern_regex, result, stop_signal_reader, maxdepth: maxdepth)
           end
         end
 
@@ -76,9 +76,9 @@ module PmSpotlightDaemon
         end
       end
 
-      def recursive_find(path, pattern_regex, result, maxdepth:)
+      def recursive_find(path, pattern_regex, result, stop_signal_reader, maxdepth:)
         Dir.foreach(path) do |file_basename|
-          raise InterruptSearch if search_interrupted?
+          raise InterruptSearch if search_interrupted?(stop_signal_reader)
 
           next if special_file?(file_basename)
 
@@ -96,7 +96,7 @@ module PmSpotlightDaemon
             if maxdepth.nil? || maxdepth > 1
               child_maxdepth = maxdepth - 1 if maxdepth
 
-              recursive_find(file_fullname, pattern_regex, result, maxdepth: maxdepth)
+              recursive_find(file_fullname, pattern_regex, result, stop_signal_reader, maxdepth: maxdepth)
             end
           end
 
@@ -108,8 +108,10 @@ module PmSpotlightDaemon
         # Ignore inaccessible files
       end
 
-      def search_interrupted?
-        Thread.current.thread_variable_get(PmSpotlightDaemon::Services::SearchService::INTERRUPT_SEARCH_THREAD_VARIABLE)
+      def search_interrupted?(stop_signal_reader)
+        stop_signal_reader.read_nonblock(1) == STOP_SIGNAL
+      rescue IO::EAGAINWaitReadable
+        false
       end
 
       def special_file?(file_basename)

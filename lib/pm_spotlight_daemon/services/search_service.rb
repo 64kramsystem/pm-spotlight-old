@@ -36,7 +36,7 @@ module PmSpotlightDaemon
           if pattern.empty?
             send_result(pattern, [])
           else
-            @active_thread = schedule_search(pattern)
+            @stop_signal_writer = schedule_search(pattern)
           end
         end
       end
@@ -44,7 +44,7 @@ module PmSpotlightDaemon
       private
 
       def existing_active_search?
-        !@active_thread.nil?
+        !@stop_signal_writer.nil?
       end
 
       def process_pattern(raw_pattern)
@@ -52,10 +52,11 @@ module PmSpotlightDaemon
       end
 
       def interrupt_active_search
-        @active_thread.thread_variable_set(INTERRUPT_SEARCH_THREAD_VARIABLE, true)
+        @stop_signal_writer.write_nonblock(PmSpotlightDaemon::Modules::PureRubySearch::STOP_SIGNAL)
+        @stop_signal_writer.close
 
         # After interrupting it, it's not a service concern anymore.
-        @active_thread = nil
+        @stop_signal_writer = nil
       end
 
       def send_result(pattern, result)
@@ -69,8 +70,10 @@ module PmSpotlightDaemon
       end
 
       def schedule_search(pattern)
+        stop_signal_reader, stop_signal_writer = IO.pipe
+
         Thread.new do
-          result = @search.search("*#{pattern}*")
+          result = @search.search("*#{pattern}*", stop_signal_reader)
 
           # If the interruption happens here, for simplicity, we consider it too late.
           # Sending a result takes negligible time, anyway.
@@ -80,6 +83,8 @@ module PmSpotlightDaemon
             send_result(pattern, result)
           end
         end
+
+        stop_signal_writer
       end
 
       def limit_result(full_result, limit)
