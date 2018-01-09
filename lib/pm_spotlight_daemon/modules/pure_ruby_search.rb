@@ -28,9 +28,6 @@ module PmSpotlightDaemon
         @paths = paths
         @include_directories = include_directories
         @skip_paths = skip_paths
-
-        # Using a mutex takes ~6% of the time.
-        @interrupt_search_mutex = Mutex.new
       end
 
       # Call this to true in order to stop the search any time; used for multithreading contexts.
@@ -38,9 +35,9 @@ module PmSpotlightDaemon
       # This method is thread-safe.
       #
       def interrupt_search
-        @interrupt_search_mutex.synchronize do
-          @search_interrupted = true
-        end
+time_1 = Time.now
+puts "SEND (#{object_id}): #{time_1} #{time_1.nsec}"
+        @search_interrupted = true
       end
 
       # GNU `find`-style finder.
@@ -120,8 +117,12 @@ module PmSpotlightDaemon
       end
 
       def search_interrupted?
-        @interrupt_search_mutex.synchronize do
-          @search_interrupted
+time = Time.now
+        if @search_interrupted
+puts "RECV (#{object_id}): #{time} #{time.nsec}"
+          true
+        else
+          false
         end
       end
 
