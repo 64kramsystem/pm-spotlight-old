@@ -60,9 +60,13 @@ module PmSpotlightDaemon
         !pattern.empty? && @last_search_pattern && pattern.start_with?(@last_search_pattern)
       end
 
-      def extract_new_result_as_subset_of_previous(pattern)
+      def extract_new_result_as_subset_of_previous(globish_pattern)
+        # Rigorous way of converting the globish pattern to a regex.
+        regex_string = globish_pattern.split('*').map { |subpattern| Regexp.escape(subpattern) }.join('.*')
+        regex = Regexp.new(regex_string, Regexp::IGNORECASE)
+
         @last_search_result.select do |filename|
-          File.basename(filename).downcase.include?(pattern.downcase)
+          File.basename(filename).match(regex)
         end
       end
 
