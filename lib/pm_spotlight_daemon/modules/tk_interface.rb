@@ -7,6 +7,24 @@ require_relative '../utils/files_opener'
 
 module PmSpotlightDaemon
   module Modules
+    # Instantiating this interface is quite slow; it takes more than 1" on an i7-6700k,
+    # which adds on top of the VM startup time.
+    # The slowest calls are the instantiation of Tk::Tile::Frame and Tk::Tile::Entry,
+    # which take around 600/800 ms.
+    #
+    # This is a sample run:
+    #
+    #   Vars:           0.010
+    #   START WIDGETS:  0.020
+    #   Root:           0.230
+    #   Icon:           0.339
+    #   Frame:          0.725
+    #   Col/row conf:   0.726
+    #   Entry:          0.954
+    #   ListBox:        1.012
+    #   Col/row conf:   1.013
+    #   Bind keys:      1.110
+    #
     class TkInterface
       ICON_FILE = File.join(__dir__, '..', 'resources', 'telescope-icon.gif')
 
