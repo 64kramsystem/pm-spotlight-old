@@ -4,12 +4,14 @@ GEM
     parseconfig (1.0.8)
     simple_scripting (0.9.3)
       parseconfig (~> 1.0)
+    tk (0.3.0)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
   simple_scripting (~> 0.9.3)
+  tk (~> 0.3.0)
 
 BUNDLED WITH
    2.1.4
