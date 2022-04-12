@@ -1,8 +1,29 @@
-# Poor Man's Spotlight
+# Poor Man's Spotlight (Ruby version; old)
 
 PMsS is a minimal desktop search service for Debian/Ubuntu machines, designed to simply open files/directories, without any indexing.
 
 ![Example](/extra/example.png?raw=true)
+
+## Status
+
+Due to limitations of the Ruby language and frameworks, a [new (Rust) version](https://github.com/64kramsystem/pm-spotlight) is in development.
+
+The Ruby problems were:
+
+1. Ruby is not well-suited to run GUI programs; due to its non-parallel nature, intensive background threads cause the GUI thread to lag noticeably
+2. Ruby-Tk is not well maintained (the last version, 0.4.0, crashes)
+3. Ruby-Tk is slow to start
+4. System-wide programs are better packaged as executable, rather than Ruby programs (which in turn require version management)
+
+Point 1 could potentially be solved by running background tasks via [Ractor](https://docs.ruby-lang.org/en/3.0/Ractor.html), which didn't exist when this project was developed.
+
+Point 3 required an overly complex architecture to workaround; potentially the [FXRuby](https://github.com/larskanis/fxruby) library could solve this (along with point 2).
+
+Point 4 is not a big deal, but a single executable is a much more solid solution, and it can't be achieved in Ruby (even if possible, it'd further slow down the startup time).
+
+Sadly, those are real problems of Ruby GUI development, not specific to this project.
+
+For the reasons above, I'm rewriting the application in Rust (any static language would do fine anyway, as the project is small and simple).
 
 ## Usage
 
